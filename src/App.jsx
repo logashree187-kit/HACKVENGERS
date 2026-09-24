@@ -1,28 +1,27 @@
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import React from 'react';
+import { Routes, Route } from 'react-router-dom';
 import Navbar from './components/Navbar';
 import Home from './pages/Home';
 import Browse from './pages/Browse';
-import Report from './pages/Report';
 import Details from './pages/Details';
-import Admin from './pages/Admin';
+import Report from './pages/Report';
 import Claims from './pages/Claims';
+import Admin from './pages/Admin';
 
-function App() {
+export default function App() {
   return (
-    <BrowserRouter>
+    <div className="min-h-screen flex flex-col bg-slate-50">
       <Navbar />
-      <div className="min-h-screen pt-16 container mx-auto px-4">
+      <main className="flex-1">
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/browse" element={<Browse />} />
+          <Route path="/items/:id" element={<Details />} />
           <Route path="/report" element={<Report />} />
-          <Route path="/item/:id" element={<Details />} />
           <Route path="/claims" element={<Claims />} />
           <Route path="/admin" element={<Admin />} />
         </Routes>
-      </div>
-    </BrowserRouter>
+      </main>
+    </div>
   );
 }
-
-export default App;

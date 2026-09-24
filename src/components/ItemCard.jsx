@@ -1,24 +1,77 @@
+import React from 'react';
 import { Link } from 'react-router-dom';
+import { MapPin, Calendar, Tag, ArrowRight } from 'lucide-react';
+import StatusBadge from './StatusBadge';
 
 export default function ItemCard({ item }) {
-  if (!item) return null; // Safety check
+  if (!item) return null;
+
+  const itemId = item._id || item.id;
+  const formattedDate = item.date
+    ? new Date(item.date).toLocaleDateString('en-US', {
+        month: 'short',
+        day: 'numeric',
+        year: 'numeric',
+      })
+    : 'Unknown date';
 
   return (
-    <div className="bg-white p-4 rounded-lg shadow border border-gray-100 flex flex-col justify-between">
+    <div className="group bg-white border border-slate-200 hover:border-indigo-400 rounded-xl p-5 shadow-sm hover:shadow-md transition-all duration-200 flex flex-col justify-between">
       <div>
-        <div className="flex justify-between items-start mb-2">
-          <h3 className="font-bold text-lg">{item.title}</h3>
-          <span className={`px-2 py-1 text-xs font-semibold rounded ${item.type === 'Lost' ? 'bg-red-100 text-red-700' : 'bg-green-100 text-green-700'}`}>
-            {item.type}
-          </span>
+        <div className="flex items-center justify-between gap-2 mb-3">
+          <div className="flex items-center gap-2 flex-wrap">
+            <StatusBadge type={item.type} />
+            <span className="inline-flex items-center gap-1 text-[11px] font-medium text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+              <Tag className="w-3 h-3 text-slate-400" />
+              {item.category || 'General'}
+            </span>
+          </div>
+          <StatusBadge status={item.status} />
         </div>
-        <p className="text-sm text-gray-500 mb-1"><span className="font-semibold">Category:</span> {item.category}</p>
-        <p className="text-sm text-gray-500 mb-1"><span className="font-semibold">Location:</span> {item.location}</p>
-        <p className="text-sm text-gray-500 mb-3"><span className="font-semibold">Date:</span> {item.date}</p>
+
+        <h3 className="text-base font-bold text-slate-900 group-hover:text-indigo-600 transition line-clamp-1">
+          {item.title}
+        </h3>
+
+        <p className="text-xs text-slate-600 mt-2 line-clamp-2 leading-relaxed min-h-8">
+          {item.description || 'No description provided.'}
+        </p>
+
+        <div className="mt-4 pt-3 border-t border-slate-100 grid grid-cols-2 gap-2 text-[11px] text-slate-500">
+          <div className="flex items-center gap-1.5 truncate">
+            <MapPin className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span className="truncate">{item.location || 'Campus'}</span>
+          </div>
+          <div className="flex items-center gap-1.5 truncate justify-end">
+            <Calendar className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+            <span>{formattedDate}</span>
+          </div>
+        </div>
+
+        {item.color && (
+          <div className="mt-2.5 flex items-center gap-1.5 text-[11px] text-slate-500">
+            <span className="w-2 h-2 rounded-full bg-slate-400 border border-slate-300"></span>
+            <span>
+              Color: <strong className="font-semibold text-slate-700">{item.color}</strong>
+            </span>
+          </div>
+        )}
       </div>
-      <Link to={`/item/${item._id}`} className="w-full text-center bg-blue-50 text-blue-600 py-2 rounded hover:bg-blue-100 transition mt-4 block font-semibold">
-        View Details
-      </Link>
+
+      <div className="mt-5 pt-3 border-t border-slate-100 flex items-center justify-between">
+        <span className="text-[10px] font-mono text-slate-400">
+          ID: {itemId ? String(itemId).slice(-6).toUpperCase() : 'N/A'}
+        </span>
+        {itemId && (
+          <Link
+            to={`/items/${itemId}`}
+            className="text-xs font-bold text-indigo-600 hover:text-indigo-700 inline-flex items-center gap-1 group-hover:translate-x-0.5 transition-transform"
+          >
+            View & Match
+            <ArrowRight className="w-3.5 h-3.5" />
+          </Link>
+        )}
+      </div>
     </div>
   );
 }

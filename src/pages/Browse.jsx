@@ -1,61 +1,133 @@
-import { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import { getItems } from '../api';
 import ItemCard from '../components/ItemCard';
+import SearchFilters from '../components/SearchFilters';
+import Loading from '../components/Loading';
+import EmptyState from '../components/EmptyState';
 
 export default function Browse() {
   const [items, setItems] = useState([]);
-  const [searchTerm, setSearchTerm] = useState('');
-  const [filterType, setFilterType] = useState('All'); // All, Lost, Found
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
+
+  // Filter States
+  const [search, setSearch] = useState('');
+  const [locationFilter, setLocationFilter] = useState('');
+  const [selectedType, setSelectedType] = useState('all');
+  const [selectedCategory, setSelectedCategory] = useState('');
+  const [selectedStatus, setSelectedStatus] = useState('');
+
+  const loadItems = async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const data = await getItems();
+      setItems(data || []);
+    } catch (err) {
+      setError('Unable to fetch items. Verify server is listening on port 5000.');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    getItems().then(data => setItems(data));
+    loadItems();
   }, []);
 
-  // FRONTEND MAGIC: Filter items instantly based on search and dropdown!
-  const filteredItems = items.filter(item => {
-    const matchesSearch = item.title.toLowerCase().includes(searchTerm.toLowerCase()) || 
-                          item.category.toLowerCase().includes(searchTerm.toLowerCase());
-    const matchesType = filterType === 'All' || item.type === filterType;
-    return matchesSearch && matchesType;
-  });
+  const handleReset = () => {
+    setSearch('');
+    setLocationFilter('');
+    setSelectedType('all');
+    setSelectedCategory('');
+    setSelectedStatus('');
+  };
+
+  // Dynamic filter pipeline
+  const filteredItems = useMemo(() => {
+    return items.filter((item) => {
+      // Type (lost / found)
+      if (selectedType !== 'all' && item.type?.toLowerCase() !== selectedType.toLowerCase()) {
+        return false;
+      }
+      // Category
+      if (selectedCategory && item.category?.toLowerCase() !== selectedCategory.toLowerCase()) {
+        return false;
+      }
+      // Status
+      if (selectedStatus && item.status?.toLowerCase() !== selectedStatus.toLowerCase()) {
+        return false;
+      }
+      // Location substring
+      if (
+        locationFilter.trim() &&
+        !item.location?.toLowerCase().includes(locationFilter.trim().toLowerCase())
+      ) {
+        return false;
+      }
+      // Search keywords across title, description, color
+      if (search.trim()) {
+        const q = search.toLowerCase();
+        const inTitle = item.title?.toLowerCase().includes(q);
+        const inDesc = item.description?.toLowerCase().includes(q);
+        const inColor = item.color?.toLowerCase().includes(q);
+        if (!inTitle && !inDesc && !inColor) return false;
+      }
+      return true;
+    });
+  }, [items, search, locationFilter, selectedType, selectedCategory, selectedStatus]);
 
   return (
-    <div className="py-8">
-      <div className="flex flex-col md:flex-row justify-between items-center mb-8 gap-4">
-        <h1 className="text-3xl font-bold">Browse Items</h1>
-        
-        {/* Search and Filter Controls */}
-        <div className="flex w-full md:w-auto gap-2">
-          <input 
-            type="text" 
-            placeholder="Search watches, bottles..." 
-            className="border border-gray-300 p-2 rounded-lg focus:ring-2 focus:ring-blue-500 outline-none w-full md:w-64"
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-          />
-          <select 
-            className="border border-gray-300 p-2 rounded-lg outline-none bg-white"
-            value={filterType}
-            onChange={(e) => setFilterType(e.target.value)}
-          >
-            <option value="All">All Items</option>
-            <option value="Lost">Only Lost</option>
-            <option value="Found">Only Found</option>
-          </select>
+    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      {/* Page Header */}
+      <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+        <div>
+          <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+            Campus Lost & Found Feed
+          </h1>
+          <p className="text-xs sm:text-sm text-slate-500 mt-1">
+            Search, filter, and discover reported belongings across facilities.
+          </p>
+        </div>
+        <div className="text-xs font-bold text-slate-600 bg-white border border-slate-200 px-3 py-1.5 rounded-lg self-start shadow-xs">
+          Showing: <span className="text-indigo-600">{filteredItems.length}</span> of {items.length} records
         </div>
       </div>
-      
-      {filteredItems.length === 0 ? (
-        <div className="bg-white p-10 rounded-lg shadow text-center border border-gray-100">
-          <p className="text-xl text-gray-500 font-semibold mb-2">No items found.</p>
-          <p className="text-gray-400">Try changing your search keywords or filter.</p>
+
+      <SearchFilters
+        search={search}
+        setSearch={setSearch}
+        selectedType={selectedType}
+        setSelectedType={setSelectedType}
+        selectedCategory={selectedCategory}
+        setSelectedCategory={setSelectedCategory}
+        selectedStatus={selectedStatus}
+        setSelectedStatus={setSelectedStatus}
+        locationFilter={locationFilter}
+        setLocationFilter={setLocationFilter}
+        onReset={handleReset}
+      />
+
+      {error && (
+        <div className="p-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs sm:text-sm rounded-xl mb-6">
+          {error}
         </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {filteredItems.map(item => (
+      )}
+
+      {loading ? (
+        <Loading count={6} label="Fetching real items from database..." />
+      ) : filteredItems.length > 0 ? (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {filteredItems.map((item) => (
             <ItemCard key={item._id} item={item} />
           ))}
         </div>
+      ) : (
+        <EmptyState
+          title="No items found"
+          message="No active records correspond to your query. Try broadening your criteria or reset filters."
+          actionLabel="Clear Filters"
+          onActionClick={handleReset}
+        />
       )}
     </div>
   );

@@ -1,119 +1,266 @@
-import { useState } from 'react';
+import React, { useState } from 'react';
+import { Link, useNavigate } from 'react-router-dom';
+import { PlusCircle, CheckCircle2, AlertCircle, ArrowRight } from 'lucide-react';
 import { createItem } from '../api';
-import { useNavigate } from 'react-router-dom';
+
+const CATEGORIES = ['Wallet', 'Electronics', 'Keys', 'ID Card', 'Bag', 'Clothing', 'Other'];
 
 export default function Report() {
   const navigate = useNavigate();
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState(null);
+  const [createdItem, setCreatedItem] = useState(null);
+
   const [formData, setFormData] = useState({
-    title: '', 
-    type: 'Lost', 
-    category: '', 
+    title: '',
+    type: 'lost',
+    category: 'Electronics',
+    description: '',
+    location: '',
+    date: new Date().toISOString().split('T')[0],
     color: '',
-    description: '', 
-    location: '', // Now initialized as empty to force selection
-    date: '', 
-    imagePreview: null 
   });
+
+  const handleChange = (e) => {
+    const { name, value } = e.target;
+    setFormData((prev) => ({ ...prev, [name]: value }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    await createItem(formData);
-    alert('Item reported successfully!');
-    navigate('/browse');
+    setSubmitting(true);
+    setError(null);
+
+    try {
+      const response = await createItem({
+        ...formData,
+      });
+
+      // Safely resolve the item object whether wrapped in response.data, response.item, or direct
+      const resolved = response?.item || response?.data || response;
+      setCreatedItem(resolved);
+
+      // Reset form
+      setFormData({
+        title: '',
+        type: 'lost',
+        category: 'Electronics',
+        description: '',
+        location: '',
+        date: new Date().toISOString().split('T')[0],
+        color: '',
+      });
+    } catch (err) {
+      setError(err.response?.data?.message || 'Failed to submit item report.');
+    } finally {
+      setSubmitting(false);
+    }
   };
 
+  // Safely extract the MongoDB ObjectId
+  const resolvedItemId =
+    createdItem?._id || createdItem?.item?._id || createdItem?.data?._id || createdItem?.id;
+
   return (
-    <div className="max-w-2xl mx-auto py-8">
-      <h1 className="text-3xl font-bold mb-6">Report Lost/Found Item</h1>
-      
-      <form onSubmit={handleSubmit} className="bg-white p-6 rounded-lg shadow-md border border-gray-100 space-y-5">
-        
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-semibold mb-1 text-gray-700">Title</label>
-            <input required type="text" className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. Fastrack Watch" onChange={e => setFormData({...formData, title: e.target.value})} />
-          </div>
-          <div>
-            <label className="block text-sm font-semibold mb-1 text-gray-700">Type</label>
-            <select className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({...formData, type: e.target.value})}>
-              <option value="Lost">I Lost Something</option>
-              <option value="Found">I Found Something</option>
-            </select>
-          </div>
-        </div>
+    <div className="max-w-3xl mx-auto px-4 sm:px-6 py-10">
+      <div className="text-center mb-8">
+        <h1 className="text-2xl sm:text-3xl font-black text-slate-900 tracking-tight">
+          Report an Item
+        </h1>
+        <p className="text-xs sm:text-sm text-slate-500 mt-1.5">
+          Submit details into campus database to trigger instant deterministic matching.
+        </p>
+      </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <div>
-            <label className="block text-sm font-semibold mb-1 text-gray-700">Category</label>
-            <select required className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" value={formData.category} onChange={e => setFormData({...formData, category: e.target.value})}>
-              <option value="" disabled>Select a Category...</option>
-              <option value="Mobile / Electronics">Mobile / Electronics</option>
-              <option value="Wallet / Purse">Wallet / Purse</option>
-              <option value="Watch / Chain / Jewelry">Watch / Chain / Jewelry</option>
-              <option value="Water Bottle">Water Bottle</option>
-              <option value="Bag / Backpack">Bag / Backpack</option>
-              <option value="Keys">Keys</option>
-              <option value="ID Card / Documents">ID Card / Documents</option>
-              <option value="Other">Other</option>
-            </select>
+      <div className="bg-white border border-slate-200 rounded-2xl p-6 sm:p-8 shadow-xs">
+        {error && (
+          <div className="mb-6 p-4 bg-rose-50 border border-rose-200 text-rose-700 text-xs sm:text-sm rounded-xl flex items-center gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0" />
+            <span>{error}</span>
           </div>
-          <div>
-            <label className="block text-sm font-semibold mb-1 text-gray-700">Color</label>
-            <input type="text" className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" placeholder="e.g. Black & Silver" onChange={e => setFormData({...formData, color: e.target.value})} />
-          </div>
-        </div>
+        )}
 
-        <div>
-          <label className="block text-sm font-semibold mb-1 text-gray-700">Upload Image (Optional)</label>
-          <div className="flex items-center gap-4">
-            <input 
-              type="file" 
-              accept="image/*"
-              className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none file:mr-4 file:py-2 file:px-4 file:rounded file:border-0 file:text-sm file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100 transition"
-              onChange={(e) => {
-                if (e.target.files && e.target.files[0]) {
-                  const imageUrl = URL.createObjectURL(e.target.files[0]);
-                  setFormData({...formData, imagePreview: imageUrl});
-                }
-              }} 
+        {createdItem && (
+          <div className="mb-6 p-5 bg-emerald-50 border border-emerald-200 rounded-xl space-y-3">
+            <div className="flex items-center gap-2 text-emerald-800 text-xs sm:text-sm font-bold">
+              <CheckCircle2 className="w-5 h-5 text-emerald-600 shrink-0" />
+              <span>Report filed successfully into LostFound+!</span>
+            </div>
+            <div className="flex flex-wrap gap-2 pt-2">
+              {resolvedItemId ? (
+                <Link
+                  to={`/items/${resolvedItemId}`}
+                  className="px-3.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 inline-flex items-center gap-1"
+                >
+                  Inspect Item Matches <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              ) : (
+                <Link
+                  to="/browse"
+                  className="px-3.5 py-1.5 bg-emerald-600 text-white rounded-lg text-xs font-bold hover:bg-emerald-700 inline-flex items-center gap-1"
+                >
+                  Browse Items <ArrowRight className="w-3.5 h-3.5" />
+                </Link>
+              )}
+              <Link
+                to="/browse"
+                className="px-3.5 py-1.5 bg-white border border-emerald-300 text-emerald-800 rounded-lg text-xs font-bold hover:bg-emerald-50"
+              >
+                Back to Feed
+              </Link>
+            </div>
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-2">
+              Report Type <span className="text-rose-500">*</span>
+            </label>
+            <div className="grid grid-cols-2 gap-3">
+              <button
+                type="button"
+                onClick={() => setFormData((prev) => ({ ...prev, type: 'lost' }))}
+                className={`py-3 px-4 rounded-xl border text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition ${
+                  formData.type === 'lost'
+                    ? 'border-rose-500 bg-rose-50 text-rose-700 ring-2 ring-rose-200'
+                    : 'border-slate-200 hover:bg-slate-50 text-slate-600'
+                }`}
+              >
+                <span className="w-2.5 h-2.5 rounded-full bg-rose-500"></span>
+                I Lost An Item
+              </button>
+              <button
+                type="button"
+                onClick={() => setFormData((prev) => ({ ...prev, type: 'found' }))}
+                className={`py-3 px-4 rounded-xl border text-xs sm:text-sm font-bold flex items-center justify-center gap-2 transition ${
+                  formData.type === 'found'
+                    ? 'border-emerald-500 bg-emerald-50 text-emerald-700 ring-2 ring-emerald-200'
+                    : 'border-slate-200 hover:bg-slate-50 text-slate-600'
+                }`}
+              >
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-500"></span>
+                I Found An Item
+              </button>
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+              Item Title <span className="text-rose-500">*</span>
+            </label>
+            <input
+              type="text"
+              name="title"
+              required
+              placeholder="e.g., Apple AirPods Pro Case with Pikachu Keychain"
+              value={formData.title}
+              onChange={handleChange}
+              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
             />
-            {formData.imagePreview && (
-              <img src={formData.imagePreview} alt="Preview" className="h-16 w-16 object-cover rounded shadow-md border border-gray-200" />
-            )}
           </div>
-        </div>
 
-        <div>
-          <label className="block text-sm font-semibold mb-1 text-gray-700">Description</label>
-          <textarea required className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" rows="3" placeholder="Provide unique details like scratches, brands, or contents..." onChange={e => setFormData({...formData, description: e.target.value})}></textarea>
-        </div>
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                Category <span className="text-rose-500">*</span>
+              </label>
+              <select
+                name="category"
+                required
+                value={formData.category}
+                onChange={handleChange}
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              >
+                {CATEGORIES.map((c) => (
+                  <option key={c} value={c}>
+                    {c}
+                  </option>
+                ))}
+              </select>
+            </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                Dominant Color <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="color"
+                required
+                placeholder="e.g., Space Gray, Black, Red"
+                value={formData.color}
+                onChange={handleChange}
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                Campus Location <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="text"
+                name="location"
+                required
+                placeholder="e.g., Library 2nd Floor, Room 204"
+                value={formData.location}
+                onChange={handleChange}
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+                Date Discovered / Lost <span className="text-rose-500">*</span>
+              </label>
+              <input
+                type="date"
+                name="date"
+                required
+                value={formData.date}
+                onChange={handleChange}
+                className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+              />
+            </div>
+          </div>
+
           <div>
-            <label className="block text-sm font-semibold mb-1 text-gray-700">Campus / Location</label>
-            {/* 👇 THIS IS THE NEW COLLEGE DROPDOWN 👇 */}
-            <select required className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" value={formData.location} onChange={e => setFormData({...formData, location: e.target.value})}>
-              <option value="" disabled>Select College...</option>
-              <option value="J.N.N Institute of Engineering">J.N.N Institute of Engineering</option>
-              <option value="R.M.K. Engineering College">R.M.K. Engineering College</option>
-              <option value="R.M.D. Engineering College">R.M.D. Engineering College</option>
-              <option value="Saveetha Engineering College">Saveetha Engineering College</option>
-              <option value="S.R.M. Institute of Science">S.R.M. Institute of Science</option>
-              <option value="V.I.T. Chennai">V.I.T. Chennai</option>
-              <option value="Sathyabama Institute">Sathyabama Institute</option>
-              <option value="Other">Other (Specify in desc)</option>
-            </select>
+            <label className="block text-xs font-bold uppercase tracking-wider text-slate-500 mb-1.5">
+              Description & Identifying Marks <span className="text-rose-500">*</span>
+            </label>
+            <textarea
+              name="description"
+              required
+              rows={4}
+              placeholder="Include unique keywords, scratches, brand names, or specific contents to maximize match precision."
+              value={formData.description}
+              onChange={handleChange}
+              className="w-full px-3.5 py-2.5 border border-slate-300 rounded-xl text-xs sm:text-sm focus:outline-none focus:ring-2 focus:ring-indigo-500"
+            ></textarea>
           </div>
-          <div>
-            <label className="block text-sm font-semibold mb-1 text-gray-700">Date (Lost/Found)</label>
-            <input required type="date" className="w-full border border-gray-300 p-2 rounded focus:ring-2 focus:ring-blue-500 outline-none" onChange={e => setFormData({...formData, date: e.target.value})} />
-          </div>
-        </div>
 
-        <button type="submit" className="w-full bg-blue-600 text-white py-3 rounded-lg font-bold text-lg hover:bg-blue-700 transition shadow-md mt-4">
-          Submit Report
-        </button>
-      </form>
+          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-3">
+            <button
+              type="button"
+              onClick={() => navigate('/browse')}
+              className="px-4 py-2 border border-slate-200 rounded-xl text-xs font-bold text-slate-600 hover:bg-slate-50"
+            >
+              Cancel
+            </button>
+            <button
+              type="submit"
+              disabled={submitting}
+              className="px-6 py-2.5 bg-indigo-600 hover:bg-indigo-700 disabled:opacity-50 text-white text-xs font-bold rounded-xl shadow-xs flex items-center gap-1.5"
+            >
+              <PlusCircle className="w-4 h-4" />
+              {submitting ? 'Submitting...' : 'Publish Item'}
+            </button>
+          </div>
+        </form>
+      </div>
     </div>
   );
 }
